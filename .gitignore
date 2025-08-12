@@ -25,3 +25,4 @@ progress.marks
 # Ignore temporary documentation files
 ISSUE_TEMPLATE.md
 PR_DESCRIPTION.md
+.serena/project.yml

@@ -1031,6 +1031,7 @@ bool nas::handle_pdn_connectivity_request(srsran::byte_buffer_t* nas_rx)
   if (nas_tx == nullptr) {
     srsran::console("Couldn't allocate PDU in %s().", __FUNCTION__);
     m_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
+    return false;
   }
 
   LIBLTE_MME_PDN_CONNECTIVITY_REJECT_MSG_STRUCT pdn_con_reject = {};
