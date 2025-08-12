@@ -18,7 +18,6 @@ jobs:
           build-essential \
           cmake \
           libfftw3-dev \
-          libfftw3f-dev \
           libmbedtls-dev \
           libboost-program-options-dev \
           libconfig++-dev \
@@ -84,7 +83,6 @@ jobs:
             build-essential \
             cmake \
             libfftw3-dev \
-            libfftw3f-dev \
             libmbedtls-dev \
             libboost-program-options-dev \
             libconfig++-dev \
