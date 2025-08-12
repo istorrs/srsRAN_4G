@@ -78,8 +78,8 @@ int mme::init(mme_args_t* args)
   }
 
   /*Log successful initialization*/
-  m_s1ap_logger.info("MME Initialized. MCC: 0x%x, MNC: 0x%x", args->s1ap_args.mcc, args->s1ap_args.mnc);
-  srsran::console("MME Initialized. MCC: 0x%x, MNC: 0x%x\n", args->s1ap_args.mcc, args->s1ap_args.mnc);
+  m_s1ap_logger.info("MME Initialized. MCC: 0x%x, MNC: 0x%x, APN: %s", args->s1ap_args.mcc, args->s1ap_args.mnc, args->s1ap_args.mme_apn.c_str());
+  srsran::console("MME Initialized. MCC: 0x%x, MNC: 0x%x, APN: %s\n", args->s1ap_args.mcc, args->s1ap_args.mnc, args->s1ap_args.mme_apn.c_str());
   return 0;
 }
 
