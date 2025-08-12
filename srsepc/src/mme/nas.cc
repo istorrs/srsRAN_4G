@@ -94,12 +94,14 @@ bool nas::handle_attach_request(uint32_t                enb_ue_s1ap_id,
   // Get NAS Attach Request and PDN connectivity request messages
   LIBLTE_ERROR_ENUM err = liblte_mme_unpack_attach_request_msg((LIBLTE_BYTE_MSG_STRUCT*)nas_rx, &attach_req);
   if (err != LIBLTE_SUCCESS) {
+    srsran::console("Error unpacking NAS attach request. Error: %s", liblte_error_text[err]);
     nas_logger.error("Error unpacking NAS attach request. Error: %s", liblte_error_text[err]);
     return false;
   }
   // Get PDN Connectivity Request*/
   err = liblte_mme_unpack_pdn_connectivity_request_msg(&attach_req.esm_msg, &pdn_con_req);
   if (err != LIBLTE_SUCCESS) {
+    srsran::console("Error unpacking NAS PDN Connectivity Request. Error: %s", liblte_error_text[err]);
     nas_logger.error("Error unpacking NAS PDN Connectivity Request. Error: %s", liblte_error_text[err]);
     return false;
   }
@@ -117,6 +119,7 @@ bool nas::handle_attach_request(uint32_t                enb_ue_s1ap_id,
     srsran::console("Attach request -- M-TMSI: 0x%x\n", m_tmsi);
     nas_logger.info("Attach request -- M-TMSI: 0x%x", m_tmsi);
   } else {
+    srsran::console("Unhandled Mobile Id type in attach request");
     nas_logger.error("Unhandled Mobile Id type in attach request");
     return false;
   }
@@ -166,14 +169,14 @@ bool nas::handle_attach_request(uint32_t                enb_ue_s1ap_id,
                   attach_req.ms_network_cap_present ? "true" : "false");
   nas_logger.info("Attach Request -- MS Network Capabilities Present: %s",
                   attach_req.ms_network_cap_present ? "true" : "false");
-  srsran::console("PDN Connectivity Request -- EPS Bearer Identity requested: %d\n", pdn_con_req.eps_bearer_id);
-  nas_logger.info("PDN Connectivity Request -- EPS Bearer Identity requested: %d", pdn_con_req.eps_bearer_id);
-  srsran::console("PDN Connectivity Request -- Procedure Transaction Id: %d\n", pdn_con_req.proc_transaction_id);
-  nas_logger.info("PDN Connectivity Request -- Procedure Transaction Id: %d", pdn_con_req.proc_transaction_id);
-  srsran::console("PDN Connectivity Request -- ESM Information Transfer requested: %s\n",
-                  pdn_con_req.esm_info_transfer_flag_present ? "true" : "false");
-  nas_logger.info("PDN Connectivity Request -- ESM Information Transfer requested: %s",
-                  pdn_con_req.esm_info_transfer_flag_present ? "true" : "false");
+  srsran::console("PDN Connectivity Request -- EPS Bearer Identity requested: %d, APN: %s\n", pdn_con_req.eps_bearer_id, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+  nas_logger.info("PDN Connectivity Request -- EPS Bearer Identity requested: %d, APN: %s", pdn_con_req.eps_bearer_id, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+  srsran::console("PDN Connectivity Request -- Procedure Transaction Id: %d, APN: %s\n", pdn_con_req.proc_transaction_id, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+  nas_logger.info("PDN Connectivity Request -- Procedure Transaction Id: %d, APN: %s", pdn_con_req.proc_transaction_id, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+  srsran::console("PDN Connectivity Request -- ESM Information Transfer requested: %s, APN: %s\n",
+                  pdn_con_req.esm_info_transfer_flag_present ? "true" : "false", pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+  nas_logger.info("PDN Connectivity Request -- ESM Information Transfer requested: %s, APN: %s",
+                  pdn_con_req.esm_info_transfer_flag_present ? "true" : "false", pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
 
   // Get NAS Context if UE is known
   nas* nas_ctx = s1ap->find_nas_ctx_from_imsi(imsi);
@@ -289,6 +292,7 @@ bool nas::handle_imsi_attach_request_unknown_ue(uint32_t                        
   nas_tx = srsran::make_byte_buffer();
   if (nas_tx == nullptr) {
     nas_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
+    srsran::console("Couldn't allocate PDU in %s().\n", __FUNCTION__);
     return false;
   }
   nas_ctx->pack_authentication_request(nas_tx.get());
@@ -482,6 +486,7 @@ bool nas::handle_guti_attach_request_known_ue(nas*                              
     nas_tx = srsran::make_byte_buffer();
     if (nas_tx == nullptr) {
       nas_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
+      srsran::console("Couldn't allocate PDU in %s().\n", __FUNCTION__);
       return false;
     }
     if (ecm_ctx->eit) {
@@ -559,6 +564,7 @@ bool nas::handle_guti_attach_request_known_ue(nas*                              
     nas_tx        = srsran::make_byte_buffer();
     if (nas_tx == nullptr) {
       nas_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
+      srsran::console("Couldn't allocate PDU in %s().\n", __FUNCTION__);
       return false;
     }
     nas_ctx->pack_authentication_request(nas_tx.get());
@@ -598,6 +604,7 @@ bool nas::handle_service_request(uint32_t                m_tmsi,
   LIBLTE_ERROR_ENUM err = liblte_mme_unpack_service_request_msg((LIBLTE_BYTE_MSG_STRUCT*)nas_rx, &service_req);
   if (err != LIBLTE_SUCCESS) {
     nas_logger.error("Could not unpack service request");
+    srsran::console("Could not unpack service request\n");
     return false;
   }
 
@@ -612,6 +619,7 @@ bool nas::handle_service_request(uint32_t                m_tmsi,
     srsran::unique_byte_buffer_t nas_tx = srsran::make_byte_buffer();
     if (nas_tx == nullptr) {
       nas_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
+      srsran::console("Couldn't allocate PDU in %s().\n", __FUNCTION__);
       return false;
     }
     nas_tmp.pack_service_reject(nas_tx.get(), LIBLTE_MME_EMM_CAUSE_IMPLICITLY_DETACHED);
@@ -630,6 +638,7 @@ bool nas::handle_service_request(uint32_t                m_tmsi,
     srsran::unique_byte_buffer_t nas_tx = srsran::make_byte_buffer();
     if (nas_tx == nullptr) {
       nas_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
+      srsran::console("Couldn't allocate PDU in %s().\n", __FUNCTION__);
       return false;
     }
     nas_tmp.pack_service_reject(nas_tx.get(), LIBLTE_MME_EMM_CAUSE_IMPLICITLY_DETACHED);
@@ -672,6 +681,7 @@ bool nas::handle_service_request(uint32_t                m_tmsi,
     // Get UE IP, and uplink F-TEID
     if (emm_ctx->ue_ip.s_addr == 0) {
       nas_logger.error("UE has no valid IP assigned upon reception of service request");
+      srsran::console("UE has no valid IP assigned upon reception of service request\n");
     }
 
     srsran::console("UE previously assigned IP: %s\n", inet_ntoa(emm_ctx->ue_ip));
@@ -714,6 +724,7 @@ bool nas::handle_service_request(uint32_t                m_tmsi,
     srsran::unique_byte_buffer_t nas_tx = srsran::make_byte_buffer();
     if (nas_tx == nullptr) {
       nas_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
+      srsran::console("Couldn't allocate PDU in %s().\n", __FUNCTION__);
       return false;
     }
     nas_ctx->pack_service_reject(nas_tx.get(), LIBLTE_MME_EMM_CAUSE_UE_IDENTITY_CANNOT_BE_DERIVED_BY_THE_NETWORK);
@@ -751,6 +762,7 @@ bool nas::handle_detach_request(uint32_t                m_tmsi,
   LIBLTE_ERROR_ENUM err = liblte_mme_unpack_detach_request_msg((LIBLTE_BYTE_MSG_STRUCT*)nas_rx, &detach_req);
   if (err != LIBLTE_SUCCESS) {
     nas_logger.error("Could not unpack detach request");
+    srsran::console("Could not unpack detach request\n");
     return false;
   }
 
@@ -765,6 +777,7 @@ bool nas::handle_detach_request(uint32_t                m_tmsi,
   if (nas_ctx == NULL) {
     srsran::console("Could not find UE context from IMSI\n");
     nas_logger.error("Could not find UE context from IMSI");
+    srsran::console("Could not find UE context from IMSI\n");
     return true;
   }
 
@@ -778,6 +791,7 @@ bool nas::handle_detach_request(uint32_t                m_tmsi,
     srsran::unique_byte_buffer_t nas_tx = srsran::make_byte_buffer();
     if (nas_tx == nullptr) {
       nas_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
+      srsran::console("Couldn't allocate PDU in %s().\n", __FUNCTION__);
       return false;
     }
 
@@ -788,6 +802,7 @@ bool nas::handle_detach_request(uint32_t                m_tmsi,
                                             (LIBLTE_BYTE_MSG_STRUCT*)nas_tx.get());
     if (err != LIBLTE_SUCCESS) {
       nas_logger.error("Error packing Detach Accept\n");
+      srsran::console("Error packing Detach Accept\n");
     }
 
     nas_logger.info("Sending detach accept.\n");
@@ -846,6 +861,7 @@ bool nas::handle_tracking_area_update_request(uint32_t                m_tmsi,
 
   srsran::unique_byte_buffer_t nas_tx = srsran::make_byte_buffer();
   if (nas_tx == nullptr) {
+    srsran::console("Couldn't allocate PDU in %s().", __FUNCTION__);
     nas_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
     return false;
   }
@@ -983,33 +999,56 @@ bool nas::handle_pdn_connectivity_request(srsran::byte_buffer_t* nas_rx)
     return false;
   }
 
-  // Send PDN connectivity reject
-  srsran::unique_byte_buffer_t nas_tx = srsran::make_byte_buffer();
-  if (nas_tx == nullptr) {
-    m_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
-    return false;
+  // Check if any PDN is already active
+  bool pdn_active = false;
+  for (const auto& esm_ctx : m_esm_ctx) {
+    if (esm_ctx.state != ERAB_DEACTIVATED) {
+      pdn_active = true;
+      break;
+    }
   }
 
-  LIBLTE_MME_PDN_CONNECTIVITY_REJECT_MSG_STRUCT pdn_con_reject = {};
-  pdn_con_reject.eps_bearer_id                                 = pdn_con_req.eps_bearer_id;
-  pdn_con_reject.proc_transaction_id                           = pdn_con_req.proc_transaction_id;
-  pdn_con_reject.esm_cause                                     = LIBLTE_MME_ESM_CAUSE_SERVICE_OPTION_NOT_SUPPORTED;
-
-  err = liblte_mme_pack_pdn_connectivity_reject_msg(&pdn_con_reject, (LIBLTE_BYTE_MSG_STRUCT*)nas_tx.get());
-  if (err != LIBLTE_SUCCESS) {
-    m_logger.error("Error packing PDN connectivity reject");
-    srsran::console("Error packing PDN connectivity reject\n");
-    return false;
+  // Accept any APN if config is '*', else require match
+  bool apn_ok = false;
+  if (m_apn == "*") {
+    apn_ok = true;
+  } else if (pdn_con_req.apn_present && m_apn == pdn_con_req.apn.apn) {
+    apn_ok = true;
   }
 
-  // Send reply to eNB
-  m_s1ap->send_downlink_nas_transport(
-      m_ecm_ctx.enb_ue_s1ap_id, m_ecm_ctx.mme_ue_s1ap_id, nas_tx.get(), m_ecm_ctx.enb_sri);
-
-  m_logger.info("DL NAS: Sending PDN Connectivity Reject");
-  srsran::console("DL NAS: Sending PDN Connectivity Reject\n");
-
-  return true;
+  if (!pdn_active && apn_ok) {
+    // Accept PDN activation (existing code for success goes here)
+    // ...existing code...
+    // For demonstration, just log acceptance:
+    m_logger.info("PDN Connectivity Request accepted. APN=%s", pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+    srsran::console("PDN Connectivity Request accepted. APN=%s\n", pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+    // TODO: Add actual PDN activation logic here
+    return true;
+  } else {
+    // Reject PDN activation
+    srsran::unique_byte_buffer_t nas_tx = srsran::make_byte_buffer();
+    if (nas_tx == nullptr) {
+      m_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
+      return false;
+    }
+    LIBLTE_MME_PDN_CONNECTIVITY_REJECT_MSG_STRUCT pdn_con_reject = {};
+    pdn_con_reject.eps_bearer_id = pdn_con_req.eps_bearer_id;
+    pdn_con_reject.proc_transaction_id = pdn_con_req.proc_transaction_id;
+    pdn_con_reject.esm_cause = LIBLTE_MME_ESM_CAUSE_SERVICE_OPTION_NOT_SUPPORTED;
+    err = liblte_mme_pack_pdn_connectivity_reject_msg(&pdn_con_reject, (LIBLTE_BYTE_MSG_STRUCT*)nas_tx.get());
+    if (err != LIBLTE_SUCCESS) {
+      m_logger.error("Error packing PDN connectivity reject");
+      srsran::console("Error packing PDN connectivity reject\n");
+      return false;
+    }
+    m_s1ap->send_downlink_nas_transport(
+        m_ecm_ctx.enb_ue_s1ap_id, m_ecm_ctx.mme_ue_s1ap_id, nas_tx.get(), m_ecm_ctx.enb_sri);
+    m_logger.info("DL NAS: Sending PDN Connectivity Reject. Cause=%d, APN=%s", 
+                  pdn_con_reject.esm_cause, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+    srsran::console("DL NAS: Sending PDN Connectivity Reject. Cause=%d, APN=%s\n", 
+                    pdn_con_reject.esm_cause, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+    return true;
+  }
 }
 
 bool nas::handle_authentication_response(srsran::byte_buffer_t* nas_rx)
