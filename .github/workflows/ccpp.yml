@@ -116,3 +116,48 @@ jobs:
             cmake -DRF_FOUND=True -DENABLE_GUI=ON -GNinja ..
           fi
           ninja
+
+  sanitizer_build:
+    name: Build with Sanitizers
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build srsRAN with AddressSanitizer and UndefinedBehaviorSanitizer
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          build-essential \
+          cmake \
+          libfftw3-dev \
+          libmbedtls-dev \
+          libboost-program-options-dev \
+          libconfig++-dev \
+          libsctp-dev \
+          libpcsclite-dev \
+          libdw-dev \
+          libzmq3-dev \
+          libboost-system-dev \
+          libboost-test-dev \
+          libboost-thread-dev \
+          qtbase5-dev \
+          libqwt-qt5-dev \
+          colordiff \
+          ninja-build \
+          valgrind
+        mkdir build && cd build
+        cmake \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -Wno-maybe-uninitialized -Wno-stringop-overflow" \
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -Wno-maybe-uninitialized -Wno-stringop-overflow -Wno-deprecated-declarations" \
+          -DENABLE_UHD=OFF \
+          -DENABLE_BLADERF=OFF \
+          -DENABLE_SOAPYSDR=OFF \
+          -DENABLE_ZEROMQ=ON \
+          -DENABLE_WERROR=OFF \
+          -DENABLE_GUI=ON \
+          -GNinja \
+          ../
+        ninja
+        echo "=== Sanitizer Build Complete ==="
+        echo "Built binaries with AddressSanitizer and UndefinedBehaviorSanitizer"
+        echo "Runtime sanitizer output will be printed to console during execution"
