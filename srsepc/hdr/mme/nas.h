@@ -277,6 +277,7 @@ private:
   uint16_t    m_mme_code  = 0;
   uint16_t    m_tac       = 0;
   std::string m_apn;
+  std::string m_ue_requested_apn;  // Store UE's requested APN from attach request
   std::string m_dns;
   std::string m_full_net_name;
   std::string m_short_net_name;

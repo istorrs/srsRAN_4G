@@ -912,6 +912,15 @@ bool nas::handle_attach_request(srsran::byte_buffer_t* nas_rx)
     return false;
   }
 
+  // Store UE's requested APN for later use during bearer establishment
+  if (pdn_con_req.apn_present || strlen(pdn_con_req.apn.apn) > 0) {
+    m_ue_requested_apn = pdn_con_req.apn.apn;
+    m_logger.info("UE requested APN: %s", m_ue_requested_apn.c_str());
+  } else {
+    m_ue_requested_apn = "(none)";
+    m_logger.info("UE requested APN: (none)");
+  }
+
   // Get UE IMSI
   if (attach_req.eps_mobile_id.type_of_id == LIBLTE_MME_EPS_MOBILE_ID_TYPE_IMSI) {
     for (int i = 0; i <= 14; i++) {
@@ -1616,6 +1625,12 @@ bool nas::pack_attach_accept(srsran::byte_buffer_t* nas_buffer)
   // set apn
   strncpy(act_def_eps_bearer_context_req.apn.apn, m_apn.c_str(), LIBLTE_STRING_LEN - 1);
   act_def_eps_bearer_context_req.proc_transaction_id = m_emm_ctx.procedure_transaction_id; // TODO
+
+  // Log both UE requested APN and configured APN being used
+  m_logger.info("Default EPS Bearer Context - UE requested APN: %s, Using configured APN: %s", 
+                m_ue_requested_apn.c_str(), m_apn.c_str());
+  srsran::console("Default EPS Bearer Context - UE requested APN: %s, Using configured APN: %s\n", 
+                  m_ue_requested_apn.c_str(), m_apn.c_str());
 
   // Set DNS server
   act_def_eps_bearer_context_req.protocol_cnfg_opts_present    = true;
