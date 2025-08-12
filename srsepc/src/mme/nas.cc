@@ -1012,62 +1012,38 @@ bool nas::handle_pdn_connectivity_request(srsran::byte_buffer_t* nas_rx)
   LIBLTE_ERROR_ENUM err =
       liblte_mme_unpack_pdn_connectivity_request_msg((LIBLTE_BYTE_MSG_STRUCT*)nas_rx->msg, &pdn_con_req);
   if (err != LIBLTE_SUCCESS) {
+    srsran::console("Error unpacking NAS PDN Connectivity Request. Error: %s", liblte_error_text[err]);
     m_logger.error("Error unpacking NAS PDN Connectivity Request. Error: %s", liblte_error_text[err]);
     return false;
   }
 
-  // Check if any PDN is already active
-  bool pdn_active = false;
-  for (const auto& esm_ctx : m_esm_ctx) {
-    if (esm_ctx.state != ERAB_DEACTIVATED) {
-      pdn_active = true;
-      break;
-    }
+  // Send PDN connectivity reject
+  srsran::unique_byte_buffer_t nas_tx = srsran::make_byte_buffer();
+  if (nas_tx == nullptr) {
+    srsran::console("Couldn't allocate PDU in %s().", __FUNCTION__);
+    m_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
   }
 
-  // Accept any APN if config is '*', else require match
-  bool apn_ok = false;
-  if (m_apn == "*") {
-    apn_ok = true;
-  } else if ((pdn_con_req.apn_present || strlen(pdn_con_req.apn.apn) > 0) && m_apn == pdn_con_req.apn.apn) {
-    apn_ok = true;
+  LIBLTE_MME_PDN_CONNECTIVITY_REJECT_MSG_STRUCT pdn_con_reject = {};
+  pdn_con_reject.eps_bearer_id                                 = pdn_con_req.eps_bearer_id;
+  pdn_con_reject.proc_transaction_id                           = pdn_con_req.proc_transaction_id;
+  pdn_con_reject.esm_cause                                     = LIBLTE_MME_ESM_CAUSE_SERVICE_OPTION_NOT_SUPPORTED;
+
+  err = liblte_mme_pack_pdn_connectivity_reject_msg(&pdn_con_reject, (LIBLTE_BYTE_MSG_STRUCT*)nas_tx.get());
+  if (err != LIBLTE_SUCCESS) {
+    m_logger.error("Error packing PDN connectivity reject");
+    srsran::console("Error packing PDN connectivity reject\n");
+    return false;
   }
 
-  if (!pdn_active && apn_ok) {
-    // Accept PDN activation (existing code for success goes here)
-    // ...existing code...
-    // For demonstration, just log acceptance:
-    const char* apn_str = (pdn_con_req.apn_present || strlen(pdn_con_req.apn.apn) > 0) ? pdn_con_req.apn.apn : "(none)";
-    m_logger.info("PDN Connectivity Request accepted. APN=%s", apn_str);
-    srsran::console("PDN Connectivity Request accepted. APN=%s\n", apn_str);
-    // TODO: Add actual PDN activation logic here
-    return true;
-  } else {
-    // Reject PDN activation
-    srsran::unique_byte_buffer_t nas_tx = srsran::make_byte_buffer();
-    if (nas_tx == nullptr) {
-      m_logger.error("Couldn't allocate PDU in %s().", __FUNCTION__);
-      return false;
-    }
-    LIBLTE_MME_PDN_CONNECTIVITY_REJECT_MSG_STRUCT pdn_con_reject = {};
-    pdn_con_reject.eps_bearer_id = pdn_con_req.eps_bearer_id;
-    pdn_con_reject.proc_transaction_id = pdn_con_req.proc_transaction_id;
-    pdn_con_reject.esm_cause = LIBLTE_MME_ESM_CAUSE_SERVICE_OPTION_NOT_SUPPORTED;
-    err = liblte_mme_pack_pdn_connectivity_reject_msg(&pdn_con_reject, (LIBLTE_BYTE_MSG_STRUCT*)nas_tx.get());
-    if (err != LIBLTE_SUCCESS) {
-      m_logger.error("Error packing PDN connectivity reject");
-      srsran::console("Error packing PDN connectivity reject\n");
-      return false;
-    }
-    m_s1ap->send_downlink_nas_transport(
-        m_ecm_ctx.enb_ue_s1ap_id, m_ecm_ctx.mme_ue_s1ap_id, nas_tx.get(), m_ecm_ctx.enb_sri);
-    const char* apn_str_reject = (pdn_con_req.apn_present || strlen(pdn_con_req.apn.apn) > 0) ? pdn_con_req.apn.apn : "(none)";
-    m_logger.info("DL NAS: Sending PDN Connectivity Reject. Cause=%d, APN=%s", 
-                  pdn_con_reject.esm_cause, apn_str_reject);
-    srsran::console("DL NAS: Sending PDN Connectivity Reject. Cause=%d, APN=%s\n", 
-                    pdn_con_reject.esm_cause, apn_str_reject);
-    return true;
-  }
+  // Send reply to eNB
+  m_s1ap->send_downlink_nas_transport(
+      m_ecm_ctx.enb_ue_s1ap_id, m_ecm_ctx.mme_ue_s1ap_id, nas_tx.get(), m_ecm_ctx.enb_sri);
+
+  m_logger.info("DL NAS:  srsepc only supports default EPS bearers, sending PDN Connectivity Reject, APN=%s", pdn_con_req.apn.apn);
+  srsran::console("DL NAS: srsepc only supports default EPS bearers, sending PDN Connectivity Reject. APN=%s\n", pdn_con_req.apn.apn);
+
+  return true;
 }
 
 bool nas::handle_authentication_response(srsran::byte_buffer_t* nas_rx)
