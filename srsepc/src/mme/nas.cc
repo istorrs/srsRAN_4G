@@ -169,14 +169,31 @@ bool nas::handle_attach_request(uint32_t                enb_ue_s1ap_id,
                   attach_req.ms_network_cap_present ? "true" : "false");
   nas_logger.info("Attach Request -- MS Network Capabilities Present: %s",
                   attach_req.ms_network_cap_present ? "true" : "false");
-  srsran::console("PDN Connectivity Request -- EPS Bearer Identity requested: %d, APN: %s\n", pdn_con_req.eps_bearer_id, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
-  nas_logger.info("PDN Connectivity Request -- EPS Bearer Identity requested: %d, APN: %s", pdn_con_req.eps_bearer_id, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
-  srsran::console("PDN Connectivity Request -- Procedure Transaction Id: %d, APN: %s\n", pdn_con_req.proc_transaction_id, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
-  nas_logger.info("PDN Connectivity Request -- Procedure Transaction Id: %d, APN: %s", pdn_con_req.proc_transaction_id, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
-  srsran::console("PDN Connectivity Request -- ESM Information Transfer requested: %s, APN: %s\n",
-                  pdn_con_req.esm_info_transfer_flag_present ? "true" : "false", pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
-  nas_logger.info("PDN Connectivity Request -- ESM Information Transfer requested: %s, APN: %s",
-                  pdn_con_req.esm_info_transfer_flag_present ? "true" : "false", pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+  // Helper function to get APN string - checks both present flag and content
+  auto get_apn_str = [&pdn_con_req]() -> const char* {
+    if (pdn_con_req.apn_present) {
+      return pdn_con_req.apn.apn;
+    }
+    // Even if apn_present is false, check if APN string has content
+    if (strlen(pdn_con_req.apn.apn) > 0) {
+      return pdn_con_req.apn.apn;
+    }
+    return "(none)";
+  };
+
+  // Helper function to check if APN is available
+  auto has_apn = [&pdn_con_req]() -> bool {
+    return pdn_con_req.apn_present || (strlen(pdn_con_req.apn.apn) > 0);
+  };
+
+  srsran::console("PDN Connectivity Request -- EPS Bearer Identity requested: %d, APN: %s (present=%s)\n", pdn_con_req.eps_bearer_id, get_apn_str(), pdn_con_req.apn_present ? "true" : "false");
+  nas_logger.info("PDN Connectivity Request -- EPS Bearer Identity requested: %d, APN: %s (present=%s)", pdn_con_req.eps_bearer_id, get_apn_str(), pdn_con_req.apn_present ? "true" : "false");
+  srsran::console("PDN Connectivity Request -- Procedure Transaction Id: %d, APN: %s (present=%s)\n", pdn_con_req.proc_transaction_id, get_apn_str(), pdn_con_req.apn_present ? "true" : "false");
+  nas_logger.info("PDN Connectivity Request -- Procedure Transaction Id: %d, APN: %s (present=%s)", pdn_con_req.proc_transaction_id, get_apn_str(), pdn_con_req.apn_present ? "true" : "false");
+  srsran::console("PDN Connectivity Request -- ESM Information Transfer requested: %s, APN: %s (present=%s)\n",
+                  pdn_con_req.esm_info_transfer_flag_present ? "true" : "false", get_apn_str(), pdn_con_req.apn_present ? "true" : "false");
+  nas_logger.info("PDN Connectivity Request -- ESM Information Transfer requested: %s, APN: %s (present=%s)",
+                  pdn_con_req.esm_info_transfer_flag_present ? "true" : "false", get_apn_str(), pdn_con_req.apn_present ? "true" : "false");
 
   // Get NAS Context if UE is known
   nas* nas_ctx = s1ap->find_nas_ctx_from_imsi(imsi);
@@ -1012,7 +1029,7 @@ bool nas::handle_pdn_connectivity_request(srsran::byte_buffer_t* nas_rx)
   bool apn_ok = false;
   if (m_apn == "*") {
     apn_ok = true;
-  } else if (pdn_con_req.apn_present && m_apn == pdn_con_req.apn.apn) {
+  } else if ((pdn_con_req.apn_present || strlen(pdn_con_req.apn.apn) > 0) && m_apn == pdn_con_req.apn.apn) {
     apn_ok = true;
   }
 
@@ -1020,8 +1037,9 @@ bool nas::handle_pdn_connectivity_request(srsran::byte_buffer_t* nas_rx)
     // Accept PDN activation (existing code for success goes here)
     // ...existing code...
     // For demonstration, just log acceptance:
-    m_logger.info("PDN Connectivity Request accepted. APN=%s", pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
-    srsran::console("PDN Connectivity Request accepted. APN=%s\n", pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+    const char* apn_str = (pdn_con_req.apn_present || strlen(pdn_con_req.apn.apn) > 0) ? pdn_con_req.apn.apn : "(none)";
+    m_logger.info("PDN Connectivity Request accepted. APN=%s", apn_str);
+    srsran::console("PDN Connectivity Request accepted. APN=%s\n", apn_str);
     // TODO: Add actual PDN activation logic here
     return true;
   } else {
@@ -1043,10 +1061,11 @@ bool nas::handle_pdn_connectivity_request(srsran::byte_buffer_t* nas_rx)
     }
     m_s1ap->send_downlink_nas_transport(
         m_ecm_ctx.enb_ue_s1ap_id, m_ecm_ctx.mme_ue_s1ap_id, nas_tx.get(), m_ecm_ctx.enb_sri);
+    const char* apn_str_reject = (pdn_con_req.apn_present || strlen(pdn_con_req.apn.apn) > 0) ? pdn_con_req.apn.apn : "(none)";
     m_logger.info("DL NAS: Sending PDN Connectivity Reject. Cause=%d, APN=%s", 
-                  pdn_con_reject.esm_cause, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+                  pdn_con_reject.esm_cause, apn_str_reject);
     srsran::console("DL NAS: Sending PDN Connectivity Reject. Cause=%d, APN=%s\n", 
-                    pdn_con_reject.esm_cause, pdn_con_req.apn_present ? pdn_con_req.apn.apn : "(none)");
+                    pdn_con_reject.esm_cause, apn_str_reject);
     return true;
   }
 }
